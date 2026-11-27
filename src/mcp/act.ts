@@ -114,6 +114,25 @@ export function registerActTools({ server, manager, tasks }: ToolContext): void 
 
   tool(
     server,
+    'keypress',
+    {
+      title: 'Press a key binding',
+      description:
+        'Presses an arbitrary key binding by id (e.g. "key.inventory" or plain "inventory"). The press edge ' +
+        '(what tap-style keys consume) is injected count times; with ticks the key is also held down that long ' +
+        '(20 per second). Unknown keys fail with the list of available bindings.',
+      inputSchema: {
+        client: clientName,
+        key: z.string().min(1).describe('Key binding id, e.g. "key.inventory" or "inventory"'),
+        ticks: z.number().int().positive().max(12_000).optional(),
+        count: z.number().int().positive().max(100).optional(),
+      },
+    },
+    async ({ client, key, ticks, count }) => manager.resolve(client).keypress(key, { ticks, count }),
+  );
+
+  tool(
+    server,
     'stop_actions',
     {
       title: 'Stop actions',

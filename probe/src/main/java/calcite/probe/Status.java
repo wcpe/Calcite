@@ -26,6 +26,32 @@ final class Status implements Ops.Module {
             }
             return entities(a.num("radius", 0), a.integer("limit", 0), a.flag("includeSelf", false));
         });
+        ops.add("hud", a -> hud());
+    }
+
+    /** HUD readout: the actionbar overlay text plus its remaining ticks. Vanilla uses overlayMessageString/overlayMessageTime (Mojang) or overlayMessage/overlayMessageTicks (some mappings). */
+    Map<String, Object> hud() throws Exception {
+        final Object mc = game.minecraft();
+        Map<String, Object> out = new LinkedHashMap<String, Object>();
+        if (mc == null) {
+            out.put("ready", false);
+            return out;
+        }
+        return game.onGameThread(() -> {
+            out.put("ready", true);
+            Object gui = game.optGet(mc, "gui");
+            Object overlay = gui == null ? null : game.optGet(gui, "overlayMessageString");
+            Number time = null;
+            if (gui != null) {
+                Object t = game.optGet(gui, "overlayMessageTime");
+                if (t instanceof Number) {
+                    time = (Number) t;
+                }
+            }
+            out.put("actionbar", overlay == null ? null : game.text(overlay));
+            out.put("actionbarTicks", time == null ? 0 : time.intValue());
+            return out;
+        }, Game.TIMEOUT_MS);
     }
 
     Map<String, Object> state() throws Exception {
