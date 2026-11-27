@@ -229,6 +229,11 @@ export class Client extends ClientCore {
     return this.requireProbe().request('select_slot', { slot });
   }
 
+  /** Structured HUD readout: the actionbar overlay text and its remaining ticks. */
+  async hud(): Promise<{ ready: boolean; actionbar?: string | null; actionbarTicks?: number }> {
+    return this.requireProbe().request('hud', {});
+  }
+
   /**
    * Presses an arbitrary key binding (e.g. {@code key.inventory} or plain {@code inventory}), optionally
    * holding it down for {@code ticks} ticks. The press edge (what tap-style keys like the inventory toggle
@@ -236,11 +241,6 @@ export class Client extends ClientCore {
    * binding reacts to. Unknown bindings fail with the available list. Key names are matched exactly or
    * with the {@code key.} prefix stripped.
    */
-  /** Structured HUD readout: the actionbar overlay text and its remaining ticks. */
-  async hud(): Promise<{ ready: boolean; actionbar?: string | null; actionbarTicks?: number }> {
-    return this.requireProbe().request('hud', {});
-  }
-
   async keypress(key: string, opts: { ticks?: number; count?: number } = {}): Promise<{ key: string; clicks: number; holdTicks?: number }> {
     return this.requireProbe().request('keypress', { key, ticks: opts.ticks ?? 0, count: opts.count ?? 1 });
   }
