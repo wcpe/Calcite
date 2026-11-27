@@ -48,7 +48,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "prepare": "node scripts/prepare.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
