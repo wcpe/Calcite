@@ -135,6 +135,7 @@ const COMMANDS: Record<string, ReplCommand> = {
     help: 'item details and tooltip (no slot = the held item)',
     run: (c, [slot]) => c.item(optionalNumber(slot)),
   },
+  keypress: { args: '<key> [ticks]', help: 'press a key binding, e.g. key.inventory', run: (c, args) => c.keypress(args[0], { ticks: args.length > 1 ? num(args, 1, 'ticks') : 0 }).then((out) => console.log(out)) },
   slot: { args: '<0-8>', help: 'select a hotbar slot', run: (c, args) => c.selectSlot(num(args, 0, 'slot')) },
   craft: {
     args: '<item> [count]',

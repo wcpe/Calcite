@@ -229,6 +229,22 @@ export class Client extends ClientCore {
     return this.requireProbe().request('select_slot', { slot });
   }
 
+  /** Structured HUD readout: the actionbar overlay text and its remaining ticks. */
+  async hud(): Promise<{ ready: boolean; actionbar?: string | null; actionbarTicks?: number }> {
+    return this.requireProbe().request('hud', {});
+  }
+
+  /**
+   * Presses an arbitrary key binding (e.g. {@code key.inventory} or plain {@code inventory}), optionally
+   * holding it down for {@code ticks} ticks. The press edge (what tap-style keys like the inventory toggle
+   * consume) and the held state are injected separately; vanilla key semantics decide which one a given
+   * binding reacts to. Unknown bindings fail with the available list. Key names are matched exactly or
+   * with the {@code key.} prefix stripped.
+   */
+  async keypress(key: string, opts: { ticks?: number; count?: number } = {}): Promise<{ key: string; clicks: number; holdTicks?: number }> {
+    return this.requireProbe().request('keypress', { key, ticks: opts.ticks ?? 0, count: opts.count ?? 1 });
+  }
+
   /** The open container (chest, furnace, villager trade, ...) or the inventory; {@code waitMs} waits for one to open. */
   async container(opts: { waitMs?: number } = {}): Promise<ContainerInfo> {
     const waitMs = opts.waitMs ?? 0;
