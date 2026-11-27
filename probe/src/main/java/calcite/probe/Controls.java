@@ -51,6 +51,7 @@ final class Controls implements Ops.Module {
     @Override
     public void register(Ops ops) {
         ops.add("move", a -> move(a.raw(), a.integer("ticks", 0)));
+        ops.add("keypress", a -> keypress(a.str("key", null), a.integer("ticks", 0), a.integer("count", 1)));
         ops.action("stop", a -> stop());
         ops.add("task", a -> game.withPlayer((mc, player) -> task(player)));
     }
@@ -143,6 +144,101 @@ final class Controls implements Ops.Module {
         applyKeys(mc);
     }
 
+    /**
+     * Presses an arbitrary key binding by id or translation key, optionally holding it.
+     *
+     * <p>Two separate semantics, matching how vanilla input actually works: the press
+     * <i>edge</i> is the click counter screens and handlers consume through consumeClick
+     * style reads — injected here as count increments; the <i>held</i> state is the
+     * continuous down flag — injected for ticks ticks when ticks &gt; 0. Tap-style keys
+     * (inventory toggle, most GUI keys) only need the edge; hold-style keys need ticks.</p>
+     *
+     * <p>Matching is exact against the binding id/translation key (e.g. {@code key.inventory});
+     * a missing binding fails fast with the available list — a wrong key name must never
+     * degrade into silent no-op.</p>
+     */
+    Map<String, Object> keypress(final String keyName, final int ticks, final int count) throws Exception {
+        if (keyName == null || keyName.isEmpty()) {
+            throw new ProbeException("bad_args", "keypress requires a key name");
+        }
+        return game.withPlayer((mc, player) -> {
+            Object options = game.optGet(mc, "options");
+            Object all = game.optGet(options, "keyMappings");
+            if (all == null) {
+                // Yarn-named clients expose the same array as allKeys; official-name clients as keyMappings.
+                all = game.optGet(options, "allKeys");
+            }
+            if (all == null || !all.getClass().isArray()) {
+                throw new ProbeException("unsupported",
+                        "Cannot enumerate key bindings on this client (options key array not found)");
+            }
+            int length = java.lang.reflect.Array.getLength(all);
+            Object match = null;
+            String matchId = null;
+            java.util.List<String> available = new java.util.ArrayList<String>();
+            for (int i = 0; i < length; i++) {
+                Object binding = java.lang.reflect.Array.get(all, i);
+                if (binding == null) {
+                    continue;
+                }
+                Object id = game.optCall(binding, "getName");
+                if (!(id instanceof String)) {
+                    // Mojang-mapped KeyMapping exposes the translation key as the name field.
+                    Object fallback = game.optGet(binding, "name");
+                    id = fallback instanceof String ? fallback : null;
+                }
+                if (id instanceof String) {
+                    available.add((String) id);
+                    if (keyName.equals(id) || keyName.equals(stripKeyPrefix((String) id))) {
+                        match = binding;
+                        matchId = (String) id;
+                    }
+                }
+            }
+            if (match == null) {
+                java.util.Collections.sort(available);
+                throw new ProbeException("unknown_key", "Unknown key binding '" + keyName
+                        + "'; available: " + String.join(" ", available));
+            }
+            int clicks = Math.max(count, 0);
+            if (clicks > 0) {
+                // Fail fast rather than guess: an unreadable counter means the runtime shape
+                // differs from what this injection was verified against — ship nothing silently.
+                Object current = game.optGet(match, "clickCount");
+                if (!(current instanceof Number)) {
+                    throw new ProbeException("unsupported",
+                            "Key binding click-count field not found on this client");
+                }
+                if (!game.optSet(match, "clickCount", ((Number) current).intValue() + clicks)) {
+                    throw new ProbeException("unsupported",
+                            "Key binding click-count injection failed on this client");
+                }
+            }
+            Map<String, Object> out = new java.util.LinkedHashMap<String, Object>();
+            out.put("key", matchId);
+            out.put("clicks", clicks);
+            if (ticks > 0) {
+                game.invoke(match, "setDown", true);
+                pendingReleases.add(new PendingRelease(match, ticks));
+                out.put("holdTicks", ticks);
+            }
+            return out;
+        });
+    }
+    private static String stripKeyPrefix(String id) {
+        return id != null && id.startsWith("key.") ? id.substring("key.".length()) : id;
+    }
+    /** A held arbitrary binding awaiting its tick-counted release. */
+    private static final class PendingRelease {
+        final Object mapping;
+        int ticksLeft;
+        PendingRelease(Object mapping, int ticksLeft) {
+            this.mapping = mapping;
+            this.ticksLeft = ticksLeft;
+        }
+    }
+    private final java.util.List<PendingRelease> pendingReleases = new java.util.ArrayList<PendingRelease>();
+
     /** Holds (or releases) movement controls, optionally for {@code ticks} ticks. */
     Map<String, Object> move(final Map<String, Object> controls, final int ticks) throws Exception {
         return game.withPlayer((mc, player) -> {
@@ -219,6 +315,19 @@ final class Controls implements Ops.Module {
             if (releaseIn > 0 && --releaseIn == 0) {
                 clearHeld();
                 releaseIn = -1;
+            }
+            if (!pendingReleases.isEmpty()) {
+                for (java.util.Iterator<PendingRelease> it = pendingReleases.iterator(); it.hasNext();) {
+                    PendingRelease pending = it.next();
+                    if (--pending.ticksLeft <= 0) {
+                        try {
+                            game.invoke(pending.mapping, "setDown", false);
+                        } catch (Exception ignored) {
+                            // The binding object is gone with a client reset; dropping it is correct.
+                        }
+                        it.remove();
+                    }
+                }
             }
         }
         applyKeys(mc);

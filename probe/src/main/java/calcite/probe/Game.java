@@ -385,6 +385,23 @@ public final class Game {
         }
     }
 
+    /** Writes a field by official name; false when missing or failing. Used for keypress click-count injection. */
+    boolean optSet(Object target, String field, Object value) {
+        if (target == null) {
+            return false;
+        }
+        try {
+            java.lang.reflect.Field f = ref.field(target.getClass(), field);
+            if (f == null) {
+                return false;
+            }
+            f.set(target, value);
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     /** Result of a no-argument method by official name, or null when missing or failing. */
     Object optCall(Object target, String method) {
         if (target == null) {
