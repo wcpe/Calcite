@@ -3,10 +3,11 @@
 // 车道拿到缺 keypress/hud 的旧形状包，属『旧包冒充新包』静默退化，禁止。
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const run = (cmd, args) => {
   try {
-    execFileSync(cmd, args, { stdio: 'inherit', cwd: new URL('..', import.meta.url).pathname })
+    execFileSync(cmd, args, { stdio: 'inherit', cwd: fileURLToPath(new URL('..', import.meta.url)) })
   } catch (e) {
     console.error(`[prepare] FAIL: ${cmd} ${args.join(' ')} 非零退出——构建失败，拒绝产出空包`)
     process.exit(1)
