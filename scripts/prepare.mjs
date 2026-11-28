@@ -15,7 +15,8 @@ const run = (cmd, args) => {
 }
 
 run('node', ['scripts/build-probe.mjs'])
-run('node_modules/.bin/tsc', ['-p', 'tsconfig.json'])
+// tsc 走 node 直驱 bin/tsc——.bin 无扩展名 shim 是 POSIX 壳，Windows spawn 必 ENOENT
+run(process.execPath, ['node_modules/typescript/bin/tsc', '-p', 'tsconfig.json'])
 
 const must = ['vendor/calcite-probe.jar', 'dist/index.js']
 for (const f of must) {
