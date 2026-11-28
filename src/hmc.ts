@@ -173,6 +173,8 @@ export function runHmc(opts: HmcRunOptions): HmcRun {
   child.once('exit', () => live.delete(child));
   for (const stream of [child.stdout, child.stderr]) {
     const rl = createInterface({ input: stream });
+    // 同上：子进程拆除期流重置经 readline 转投 Interface，吸收不遮蔽 line 消费
+    rl.on('error', () => undefined);
     rl.on('line', (line) => opts.onLine?.(line));
   }
   const exited = new Promise<number | null>((resolve) => {
