@@ -201,7 +201,9 @@ export async function startPaperServer(opts: PaperServerOptions): Promise<PaperS
   const waiters = new Set<{ pattern: RegExp; resolve: (line: string) => void }>();
   const tail: string[] = [];
   for (const stream of [proc.stdout, proc.stderr]) {
-    createInterface({ input: stream }).on('line', (line) => {
+    const rl = createInterface({ input: stream });
+    rl.on('error', () => undefined);
+    rl.on('line', (line) => {
       tail.push(line);
       if (tail.length > 40) tail.shift();
       opts.onLine?.(line);

@@ -73,6 +73,9 @@ export class ProbeServer extends EventEmitter<ProbeServerEvents> {
       if (!authed) socket.destroy();
     }, 10_000);
     const rl = createInterface({ input: socket });
+    // readline 会给 input socket 挂 error listener 并转投 Interface——无吸收器即进程级 throw，
+    // 拆除期对端重置（ECONNRESET）是常态噪声，不属协议失败
+    rl.on('error', () => undefined);
     rl.on('line', (line) => {
       let msg: Record<string, unknown>;
       try {
